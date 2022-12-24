@@ -11,7 +11,7 @@ async function getData(url) {
 }
 
 async function loadCountriesData() {
-    const countries = await getData('https://restcountries.com/v3.1/all?fields=name&fields=cca3&fields=area');
+    const countries = await getData('https://restcountries.com/v3.1/all?fields=name,cca3,area');
     return countries.reduce((result, country) => {
         result[country.cca3] = country;
         return result;
