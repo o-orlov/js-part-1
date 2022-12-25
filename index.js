@@ -44,34 +44,19 @@ class CountriesClient {
 class CountriesService {
     constructor() {
         this.countriesClient = new CountriesClient();
-        this.countriesData = null;
     }
 
     async getCountriesData() {
-        if (this.countriesData === null) {
-            const data = await this.countriesClient.getAll(['name', 'cca3', 'area']);
-            this.countriesData = data.reduce((result, country) => {
-                result[country.cca3] = country;
-                return result;
-            }, {});
-        }
-        return this.countriesData;
-    }
-
-    async getCountryName(countryCode) {
-        const countryData = (await this.getCountriesData())[countryCode];
-        return countryData.name.common;
+        const data = await this.countriesClient.getAll(['name', 'cca3', 'area']);
+        return data.reduce((result, country) => {
+            result[country.cca3] = country;
+            return result;
+        }, {});
     }
 
     async getNeighbours(countryCode) {
         const data = await this.countriesClient.searchByCountryCode(countryCode, ['borders']);
         return data.borders;
-    }
-
-    async getCalculatingRouteMessage(fromCountryCode, toCountryCode) {
-        const fromCountryName = await this.getCountryName(fromCountryCode);
-        const toCountryName = await this.getCountryName(toCountryCode);
-        return `Calculating route from ${fromCountryName} (${fromCountryCode}) to ${toCountryName} (${toCountryCode})…`;
     }
 }
 
@@ -110,8 +95,7 @@ function clearMessage() {
         .sort((a, b) => countriesData[b].area - countriesData[a].area)
         .forEach((code) => {
             const option = document.createElement('option');
-            option.value = code;
-            option.label = countriesData[code].name.common;
+            option.value = countriesData[code].name.common;
             countriesList.appendChild(option);
         });
 
@@ -120,7 +104,7 @@ function clearMessage() {
     form.addEventListener('submit', (event) => {
         event.preventDefault();
         setInteractionDisabled(true);
-        countriesService.getCalculatingRouteMessage(fromCountry.value, toCountry.value).then(showMessage);
+        showMessage(`Calculating route from ${fromCountry.value} to ${toCountry.value}…`);
         // TODO: Рассчитать маршрут из одной страны в другую за минимум запросов.
         // TODO: Вывести маршрут и общее количество запросов.
         setTimeout(() => {
