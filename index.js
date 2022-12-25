@@ -33,7 +33,7 @@ class CountriesClient {
     }
 
     async getAll(fields) {
-        return this.get('all', undefined, fields);
+        return this.get('all', null, fields);
     }
 
     async searchByCountryCode(countryCode, fields) {
@@ -44,19 +44,34 @@ class CountriesClient {
 class CountriesService {
     constructor() {
         this.countriesClient = new CountriesClient();
+        this.countriesData = null;
     }
 
     async getCountriesData() {
-        const data = await this.countriesClient.getAll(['name', 'cca3', 'area']);
-        return data.reduce((result, country) => {
-            result[country.cca3] = country;
-            return result;
-        }, {});
+        if (this.countriesData === null) {
+            const data = await this.countriesClient.getAll(['name', 'cca3', 'area']);
+            this.countriesData = data.reduce((result, country) => {
+                result[country.cca3] = country;
+                return result;
+            }, {});
+        }
+        return this.countriesData;
+    }
+
+    async getCountryName(countryCode) {
+        const countryData = (await this.getCountriesData())[countryCode];
+        return countryData.name.common;
     }
 
     async getNeighbours(countryCode) {
         const data = await this.countriesClient.searchByCountryCode(countryCode, ['borders']);
         return data.borders;
+    }
+
+    async getCalculatingRouteMessage(fromCountryCode, toCountryCode) {
+        const fromCountryName = await this.getCountryName(fromCountryCode);
+        const toCountryName = await this.getCountryName(toCountryCode);
+        return `Calculating route from ${fromCountryName} (${fromCountryCode}) to ${toCountryName} (${toCountryCode})…`;
     }
 }
 
@@ -69,34 +84,48 @@ const output = document.getElementById('output');
 
 const countriesService = new CountriesService();
 
-function setDisabled(disabled) {
+function setInteractionDisabled(disabled) {
     fromCountry.disabled = disabled;
     toCountry.disabled = disabled;
     submit.disabled = disabled;
 }
 
-(async () => {
-    setDisabled(true);
+function showMessage(message) {
+    output.textContent = message;
+}
 
-    output.textContent = 'Loading…';
-    const countriesData = await countriesService.getCountriesData();
+function clearMessage() {
     output.textContent = '';
+}
+
+(async () => {
+    setInteractionDisabled(true);
+
+    showMessage('Loading…');
+    const countriesData = await countriesService.getCountriesData();
+    clearMessage();
 
     // Заполняем список стран для подсказки в инпутах
     Object.keys(countriesData)
         .sort((a, b) => countriesData[b].area - countriesData[a].area)
         .forEach((code) => {
             const option = document.createElement('option');
-            option.value = countriesData[code].name.common;
+            option.value = code;
+            option.label = countriesData[code].name.common;
             countriesList.appendChild(option);
         });
 
-    setDisabled(false);
+    setInteractionDisabled(false);
 
     form.addEventListener('submit', (event) => {
         event.preventDefault();
-        // TODO: Вывести, откуда и куда едем, и что идёт расчёт.
+        setInteractionDisabled(true);
+        countriesService.getCalculatingRouteMessage(fromCountry.value, toCountry.value).then(showMessage);
         // TODO: Рассчитать маршрут из одной страны в другую за минимум запросов.
         // TODO: Вывести маршрут и общее количество запросов.
+        setTimeout(() => {
+            clearMessage();
+            setInteractionDisabled(false);
+        }, 1000); // TODO: Удалить тестовую задержку (установить 0)
     });
 })();
