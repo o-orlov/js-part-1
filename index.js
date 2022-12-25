@@ -66,19 +66,21 @@ const toCountry = document.getElementById('toCountry');
 const countriesList = document.getElementById('countriesList');
 const submit = document.getElementById('submit');
 const output = document.getElementById('output');
+
 const countriesService = new CountriesService();
 
+function setDisabled(disabled) {
+    fromCountry.disabled = disabled;
+    toCountry.disabled = disabled;
+    submit.disabled = disabled;
+}
+
 (async () => {
-    fromCountry.disabled = true;
-    toCountry.disabled = true;
-    submit.disabled = true;
+    setDisabled(true);
 
     output.textContent = 'Loading…';
     const countriesData = await countriesService.getCountriesData();
     output.textContent = '';
-
-    // TODO: Удалить тестовый вывод запроса соседних с РФ стран
-    console.log(await countriesService.getNeighbours('RUS'));
 
     // Заполняем список стран для подсказки в инпутах
     Object.keys(countriesData)
@@ -89,9 +91,7 @@ const countriesService = new CountriesService();
             countriesList.appendChild(option);
         });
 
-    fromCountry.disabled = false;
-    toCountry.disabled = false;
-    submit.disabled = false;
+    setDisabled(false);
 
     form.addEventListener('submit', (event) => {
         event.preventDefault();
