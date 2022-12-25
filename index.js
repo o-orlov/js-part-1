@@ -4,6 +4,7 @@ class CountriesClient {
         this.urls = {
             all: '/all',
             code: '/alpha/{code}',
+            fullName: '/name/{name}?fullText=true',
         };
     }
 
@@ -39,24 +40,60 @@ class CountriesClient {
     async searchByCountryCode(countryCode, fields) {
         return this.get('code', { code: countryCode }, fields);
     }
+
+    async searchByCountryName(countryName, fields) {
+        return this.get('fullName', { name: countryName }, fields);
+    }
 }
 
 class CountriesService {
     constructor() {
         this.countriesClient = new CountriesClient();
+        this.countriesData = null;
+        this.countryNameToCodeMapping = null;
     }
 
     async getCountriesData() {
-        const data = await this.countriesClient.getAll(['name', 'cca3', 'area']);
-        return data.reduce((result, country) => {
-            result[country.cca3] = country;
-            return result;
-        }, {});
+        if (this.countriesData === null) {
+            const data = await this.countriesClient.getAll(['name', 'cca3', 'area']);
+            this.countriesData = data.reduce((result, country) => {
+                result[country.cca3] = country;
+                return result;
+            }, {});
+            this.countryNameToCodeMapping = data.reduce((result, country) => {
+                result[country.name.common] = country.cca3;
+                return result;
+            }, {});
+        }
+        return this.countriesData;
     }
 
-    async getNeighbours(countryCode) {
+    async getCountryCodeByName(countryName) {
+        if (this.countriesData === null) {
+            this.getCountriesData();
+        }
+        const countryCode = this.countryNameToCodeMapping[countryName];
+        if (countryCode === undefined) {
+            throw new Error(`Country code by name "${countryName}" not found.`);
+        }
+        return countryCode;
+    }
+
+    async getNeighboursByCountryCode(countryCode) {
         const data = await this.countriesClient.searchByCountryCode(countryCode, ['borders']);
         return data.borders;
+    }
+
+    async getNeighboursByCountryName(countryName) {
+        const data = await this.countriesClient.searchByCountryName(countryName, ['borders']);
+        return data.borders;
+    }
+
+    async calculateRoute(fromCountryName, toCountryName) {
+        const fromCountryCode = await this.getCountryCodeByName(fromCountryName);
+        const toCountryCode = await this.getCountryCodeByName(toCountryName);
+        // TODO: Вернуть найденный маршрут или выдать ошибку.
+        return [fromCountryName, toCountryName];
     }
 }
 
@@ -77,6 +114,10 @@ function setInteractionDisabled(disabled) {
 
 function showMessage(message) {
     output.textContent = message;
+}
+
+function showError(error) {
+    output.textContent = `Error! ${error.message}`;
 }
 
 function clearMessage() {
@@ -103,13 +144,25 @@ function clearMessage() {
 
     form.addEventListener('submit', (event) => {
         event.preventDefault();
+        clearMessage();
         setInteractionDisabled(true);
         showMessage(`Calculating route from ${fromCountry.value} to ${toCountry.value}…`);
+        countriesService
+            .calculateRoute(fromCountry.value, toCountry.value)
+            .then((route) => {
+                showMessage(route.join(' → '));
+            })
+            .catch((reason) => {
+                if (reason instanceof Error) {
+                    showError(reason);
+                } else {
+                    console.log(reason);
+                }
+            })
+            .finally(() => {
+                setInteractionDisabled(false);
+            });
         // TODO: Рассчитать маршрут из одной страны в другую за минимум запросов.
         // TODO: Вывести маршрут и общее количество запросов.
-        setTimeout(() => {
-            clearMessage();
-            setInteractionDisabled(false);
-        }, 1000); // TODO: Удалить тестовую задержку (установить 0)
     });
 })();
