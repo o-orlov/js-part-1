@@ -104,11 +104,49 @@ class RouteVariantTreeItem {
     appendChild(child) {
         this.children.push(child);
     }
+
+    isLeaf() {
+        return this.children.length === 0;
+    }
 }
 
 class RouteVariantTree {
     constructor(countryCode) {
         this.root = new RouteVariantTreeItem(countryCode, null);
+    }
+
+    forEach(callback, item) {
+        if (item === undefined) {
+            item = this.root;
+        }
+        for (const child of item.children) {
+            this.forEach(callback, child);
+        }
+        callback(item);
+    }
+
+    getLeaves() {
+        const leaves = [];
+        this.forEach((item) => {
+            if (item.isLeaf()) {
+                leaves.push(item);
+            }
+        });
+        return leaves;
+    }
+
+    toArrays() {
+        const arrays = [];
+        this.getLeaves().forEach((item) => {
+            const array = [];
+            do {
+                array.push(item.countryCode);
+                item = item.parent;
+            } while (item !== null);
+            array.reverse();
+            arrays.push(array);
+        });
+        return arrays;
     }
 }
 
@@ -120,7 +158,6 @@ class RouteFinder {
 
     async findNeighbour(parents, countryCode, iteration = 1) {
         let found = false;
-
         const countryCodes = parents.map((item) => item.countryCode);
         const results = await this.countriesService.getNeighboursByCountryCodes(countryCodes);
         results.forEach((result, index) => {
@@ -138,13 +175,13 @@ class RouteFinder {
                 throw new Error(result.reason);
             }
         });
-
         if (!found && iteration < this.maxIterations) {
-            const children = [];
-            parents.forEach((parent) => children.concat(parent.children));
+            let children = [];
+            for (const parent of parents) {
+                children = children.concat(parent.children);
+            }
             return this.findNeighbour(children, countryCode, iteration + 1);
         }
-
         return found;
     }
 
@@ -158,16 +195,12 @@ class RouteFinder {
         if (fromCountryName === toCountryName) {
             throw new Error('Departure and destination countries are the same.');
         }
-
         const fromCountryCode = await this.countriesService.getCountryCodeByName(fromCountryName);
         const toCountryCode = await this.countriesService.getCountryCodeByName(toCountryName);
         const tree = new RouteVariantTree(fromCountryCode);
-
         if (await this.findNeighbour([tree.root], toCountryCode)) {
-            // TODO: Найти все валидные варианты маршрутов и вернуть их в строковом или JSON представлении.
-            return `Found route from ${fromCountryName} to ${toCountryName}.`;
+            return tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
         }
-
         return null;
     }
 }
@@ -227,7 +260,7 @@ function clearMessage() {
             .findRoute(fromCountry.value, toCountry.value)
             .then((result) => {
                 if (result !== null) {
-                    showMessage(result);
+                    showMessage(JSON.stringify(result));
                 } else {
                     showMessage(`Route from ${fromCountry.value} to ${toCountry.value} not found.`);
                 }
@@ -236,7 +269,6 @@ function clearMessage() {
             .finally(() => {
                 setInteractionDisabled(false);
             });
-        // TODO: Рассчитать маршрут из одной страны в другую за минимум запросов.
         // TODO: Вывести маршрут и общее количество запросов.
     });
 })();
