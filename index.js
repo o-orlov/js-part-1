@@ -71,13 +71,29 @@ class CountriesService {
 
     async getCountryCodeByName(countryName) {
         if (this.countriesData === null) {
-            this.getCountriesData();
+            await this.getCountriesData();
         }
         const countryCode = this.countryNameToCodeMapping[countryName];
         if (countryCode === undefined) {
             throw new Error(`Country code by name "${countryName}" not found.`);
         }
         return countryCode;
+    }
+
+    async getCountryNameByCode(countryCode) {
+        if (this.countriesData === null) {
+            await this.getCountriesData();
+        }
+        const country = this.countriesData[countryCode];
+        if (country === undefined) {
+            throw new Error(`Country by code "${countryCode}" not found.`);
+        }
+        return country.name.common;
+    }
+
+    async getCountryNamesByCodes(countryCodes) {
+        const promises = countryCodes.map(this.getCountryNameByCode.bind(this));
+        return Promise.allSettled(promises);
     }
 
     async getNeighboursByCountryCode(countryCode) {
@@ -198,10 +214,46 @@ class RouteFinder {
         const fromCountryCode = await this.countriesService.getCountryCodeByName(fromCountryName);
         const toCountryCode = await this.countriesService.getCountryCodeByName(toCountryName);
         const tree = new RouteVariantTree(fromCountryCode);
-        if (await this.findNeighbour([tree.root], toCountryCode)) {
-            return tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
+        const found = await this.findNeighbour([tree.root], toCountryCode);
+        if (found) {
+            const routes = tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
+            return this.beatifyFoundRoutes(routes);
         }
         return null;
+    }
+
+    async beatifyFoundRoutes(routes) {
+        const countryCodeToNameMapping = await this.getCountryCodeToNameMappingFromRoutes(routes);
+        const beatifiedRoutes = [];
+        for (const route of routes) {
+            const beatifiedRoute = [];
+            for (const countryCode of route) {
+                beatifiedRoute.push(countryCodeToNameMapping[countryCode]);
+            }
+            beatifiedRoutes.push(beatifiedRoute);
+        }
+        return beatifiedRoutes;
+    }
+
+    async getCountryCodeToNameMappingFromRoutes(routes) {
+        let countryCodes = new Set();
+        for (const route of routes) {
+            for (const countryCode of route) {
+                countryCodes.add(countryCode);
+            }
+        }
+        countryCodes = [...countryCodes];
+
+        const countryCodeToNameMapping = {};
+        const results = await this.countriesService.getCountryNamesByCodes(countryCodes);
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                countryCodeToNameMapping[countryCodes[index]] = result.value;
+            } else {
+                throw new Error(result.reason);
+            }
+        });
+        return countryCodeToNameMapping;
     }
 }
 
