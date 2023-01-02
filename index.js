@@ -52,7 +52,6 @@ class CountriesService {
         this._client = client;
         this._countriesData = null;
         this._countryNameToCodeMapping = null;
-        this._countryCodeToNeighboursMapping = {};
     }
 
     async getCountriesData() {
@@ -102,11 +101,8 @@ class CountriesService {
     }
 
     async getNeighboursByCountryCode(countryCode) {
-        if (this._countryCodeToNeighboursMapping[countryCode] === undefined) {
-            const data = await this._client.searchByCountryCode(countryCode, ['borders']);
-            this._countryCodeToNeighboursMapping[countryCode] = data.borders;
-        }
-        return this._countryCodeToNeighboursMapping[countryCode];
+        const data = await this._client.searchByCountryCode(countryCode, ['borders']);
+        return data.borders;
     }
 
     async getNeighboursByCountryCodes(countryCodes) {
@@ -201,7 +197,7 @@ class RouteFinder {
                 parent.appendChild(child);
             }
         });
-        console.log(`Country codes: ${[...checkedCountryCodes]}`);
+        console.log(`Checked countries: ${checkedCountryCodes.size}`);
 
         if (!found && iteration < this._maxIterations) {
             let children = [];
@@ -232,14 +228,17 @@ class RouteFinder {
         const fromCountryCode = await this._countriesService.getCountryCodeByName(fromCountryName);
         const toCountryCode = await this._countriesService.getCountryCodeByName(toCountryName);
         const tree = new RouteVariantTree(fromCountryCode);
+        console.log(`Finding route from ${fromCountryCode} to ${toCountryCode}…`);
         const found = await this._findNeighbour([tree.root], toCountryCode);
 
         if (found) {
             let routes = tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
+            console.log(`Found route variants: ${routes.length}`);
             routes = await this._replaceCountryCodesWithNames(routes);
             return [routes, this._countriesService.requestCount - requestCountBefore];
         }
 
+        console.log('Route variants not found');
         return [null, this._countriesService.requestCount - requestCountBefore];
     }
 
