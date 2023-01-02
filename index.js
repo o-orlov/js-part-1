@@ -240,7 +240,6 @@ class RouteFinder {
             }
             newRoutes.push(newRoute);
         }
-        console.log(newRoutes);
         return newRoutes;
     }
 
@@ -290,6 +289,19 @@ function showError(error) {
     output.textContent = `Error: ${error.message}`;
 }
 
+function showResult(result) {
+    let route = '';
+    if (result[0] !== null) {
+        for (const variant of result[0]) {
+            route += `${variant.join(' → ')}\r\n`;
+        }
+        route = route.trim();
+    } else {
+        route = `Route from ${fromCountry.value} to ${toCountry.value} not found.`;
+    }
+    output.textContent = `${route}\r\n\r\nAPI calls: ${result[1]}`;
+}
+
 function clearMessage() {
     output.textContent = '';
 }
@@ -319,17 +331,10 @@ function clearMessage() {
         showMessage(`Finding route from ${fromCountry.value} to ${toCountry.value}…`);
         routeFinder
             .findRoute(fromCountry.value, toCountry.value)
-            .then((result) => {
-                if (result[0] !== null) {
-                    showMessage(JSON.stringify(result));
-                } else {
-                    showMessage(`Route from ${fromCountry.value} to ${toCountry.value} not found.`);
-                }
-            })
+            .then(showResult)
             .catch(showError)
             .finally(() => {
                 setInteractionDisabled(false);
             });
-        // TODO: Вывести маршрут и общее количество запросов.
     });
 })();
