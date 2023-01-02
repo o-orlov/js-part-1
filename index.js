@@ -178,13 +178,17 @@ class RouteFinder {
         this.maxIterations = 10;
     }
 
-    async findNeighbour(parents, countryCode, iteration = 1) {
+    async findNeighbour(parents, countryCode, checkedCountryCodes = new Set(), iteration = 1) {
+        console.log(`Iteration: ${iteration}`);
         let found = false;
-        const countryCodes = parents.map((item) => item.countryCode);
+        const countryCodes = parents
+            .map((item) => item.countryCode)
+            .filter((countryCode) => !checkedCountryCodes.has(countryCode));
         const results = await this.countriesService.getNeighboursByCountryCodes(countryCodes);
         results.forEach((result, index) => {
             if (result.status === 'fulfilled') {
                 const parent = parents[index];
+                checkedCountryCodes.add(parent.countryCode);
                 const neighbours = result.value;
                 neighbours.forEach((neighbour) => {
                     if (neighbour === countryCode) {
@@ -197,12 +201,13 @@ class RouteFinder {
                 throw new Error(result.reason);
             }
         });
+        console.log(`Country codes: ${[...checkedCountryCodes]}`);
         if (!found && iteration < this.maxIterations) {
             let children = [];
             for (const parent of parents) {
                 children = children.concat(parent.children);
             }
-            return this.findNeighbour(children, countryCode, iteration + 1);
+            return this.findNeighbour(children, countryCode, checkedCountryCodes, iteration + 1);
         }
         return found;
     }
