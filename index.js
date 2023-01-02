@@ -1,16 +1,19 @@
 class CountriesClient {
     constructor() {
-        this.baseUrl = 'https://restcountries.com/v3.1';
-        this.urls = {
+        this._baseUrl = 'https://restcountries.com/v3.1';
+        this._urls = {
             all: '/all',
             code: '/alpha/{code}',
-            fullName: '/name/{name}?fullText=true',
         };
-        this.requestCount = 0;
+        this._requestCount = 0;
     }
 
-    getUrl(urlName, urlParams, fields) {
-        let url = this.urls[urlName];
+    get requestCount() {
+        return this._requestCount;
+    }
+
+    _getUrl(urlName, urlParams, fields) {
+        let url = this._urls[urlName];
         if (urlParams) {
             Object.keys(urlParams).forEach((paramName) => {
                 url = url.replace(`{${paramName}}`, urlParams[paramName]);
@@ -19,11 +22,11 @@ class CountriesClient {
         if (fields) {
             url += `?fields=${fields.toString()}`;
         }
-        return this.baseUrl + url;
+        return this._baseUrl + url;
     }
 
-    async get(urlName, urlParams, fields) {
-        const url = this.getUrl(urlName, urlParams, fields);
+    async _get(urlName, urlParams, fields) {
+        const url = this._getUrl(urlName, urlParams, fields);
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -31,51 +34,47 @@ class CountriesClient {
             },
             redirect: 'follow',
         });
-        this.requestCount += 1;
+        this._requestCount += 1;
         return response.json();
     }
 
     async getAll(fields) {
-        return this.get('all', null, fields);
+        return this._get('all', null, fields);
     }
 
     async searchByCountryCode(countryCode, fields) {
-        return this.get('code', { code: countryCode }, fields);
-    }
-
-    async searchByCountryName(countryName, fields) {
-        return this.get('fullName', { name: countryName }, fields);
+        return this._get('code', { code: countryCode }, fields);
     }
 }
 
 class CountriesService {
-    constructor() {
-        this.client = new CountriesClient();
-        this.countriesData = null;
-        this.countryNameToCodeMapping = null;
-        this.countryCodeToNeighboursMapping = {};
+    constructor(client = new CountriesClient()) {
+        this._client = client;
+        this._countriesData = null;
+        this._countryNameToCodeMapping = null;
+        this._countryCodeToNeighboursMapping = {};
     }
 
     async getCountriesData() {
-        if (this.countriesData === null) {
-            const data = await this.client.getAll(['name', 'cca3', 'area']);
-            this.countriesData = data.reduce((result, country) => {
+        if (this._countriesData === null) {
+            const data = await this._client.getAll(['name', 'cca3', 'area']);
+            this._countriesData = data.reduce((result, country) => {
                 result[country.cca3] = country;
                 return result;
             }, {});
-            this.countryNameToCodeMapping = data.reduce((result, country) => {
+            this._countryNameToCodeMapping = data.reduce((result, country) => {
                 result[country.name.common] = country.cca3;
                 return result;
             }, {});
         }
-        return this.countriesData;
+        return this._countriesData;
     }
 
     async getCountryCodeByName(countryName) {
-        if (this.countriesData === null) {
+        if (this._countriesData === null) {
             await this.getCountriesData();
         }
-        const countryCode = this.countryNameToCodeMapping[countryName];
+        const countryCode = this._countryNameToCodeMapping[countryName];
         if (countryCode === undefined) {
             throw new Error(`Country code by name "${countryName}" not found.`);
         }
@@ -83,10 +82,10 @@ class CountriesService {
     }
 
     async getCountryNameByCode(countryCode) {
-        if (this.countriesData === null) {
+        if (this._countriesData === null) {
             await this.getCountriesData();
         }
-        const country = this.countriesData[countryCode];
+        const country = this._countriesData[countryCode];
         if (country === undefined) {
             throw new Error(`Country by code "${countryCode}" not found.`);
         }
@@ -103,11 +102,11 @@ class CountriesService {
     }
 
     async getNeighboursByCountryCode(countryCode) {
-        if (this.countryCodeToNeighboursMapping[countryCode] === undefined) {
-            const data = await this.client.searchByCountryCode(countryCode, ['borders']);
-            this.countryCodeToNeighboursMapping[countryCode] = data.borders;
+        if (this._countryCodeToNeighboursMapping[countryCode] === undefined) {
+            const data = await this._client.searchByCountryCode(countryCode, ['borders']);
+            this._countryCodeToNeighboursMapping[countryCode] = data.borders;
         }
-        return this.countryCodeToNeighboursMapping[countryCode];
+        return this._countryCodeToNeighboursMapping[countryCode];
     }
 
     async getNeighboursByCountryCodes(countryCodes) {
@@ -119,13 +118,13 @@ class CountriesService {
         return values;
     }
 
-    getRequestCount() {
-        return this.client.requestCount;
+    get requestCount() {
+        return this._client.requestCount;
     }
 }
 
 class RouteVariantTreeItem {
-    constructor(countryCode, parent) {
+    constructor(countryCode, parent = null) {
         this.countryCode = countryCode;
         this.parent = parent;
         this.children = [];
@@ -142,13 +141,10 @@ class RouteVariantTreeItem {
 
 class RouteVariantTree {
     constructor(countryCode) {
-        this.root = new RouteVariantTreeItem(countryCode, null);
+        this.root = new RouteVariantTreeItem(countryCode);
     }
 
-    forEach(callback, item) {
-        if (item === undefined) {
-            item = this.root;
-        }
+    forEach(callback, item = this.root) {
         for (const child of item.children) {
             this.forEach(callback, child);
         }
@@ -181,18 +177,19 @@ class RouteVariantTree {
 }
 
 class RouteFinder {
-    constructor(countriesService) {
-        this.countriesService = countriesService;
-        this.maxIterations = 10;
+    constructor(countriesService = new CountriesService(), maxIterations = 10) {
+        this._countriesService = countriesService;
+        this._maxIterations = maxIterations;
     }
 
-    async findNeighbour(parents, countryCode, checkedCountryCodes = new Set(), iteration = 1) {
+    async _findNeighbour(parents, countryCode, checkedCountryCodes = new Set(), iteration = 1) {
         console.log(`Iteration: ${iteration}`);
         let found = false;
         const countryCodes = parents
             .map((item) => item.countryCode)
             .filter((countryCode) => !checkedCountryCodes.has(countryCode));
-        const results = await this.countriesService.getNeighboursByCountryCodes(countryCodes);
+
+        const results = await this._countriesService.getNeighboursByCountryCodes(countryCodes);
         results.forEach((neighbours, index) => {
             const parent = parents[index];
             checkedCountryCodes.add(parent.countryCode);
@@ -205,13 +202,15 @@ class RouteFinder {
             }
         });
         console.log(`Country codes: ${[...checkedCountryCodes]}`);
-        if (!found && iteration < this.maxIterations) {
+
+        if (!found && iteration < this._maxIterations) {
             let children = [];
             for (const parent of parents) {
                 children = children.concat(parent.children);
             }
-            return this.findNeighbour(children, countryCode, checkedCountryCodes, iteration + 1);
+            return this._findNeighbour(children, countryCode, checkedCountryCodes, iteration + 1);
         }
+
         return found;
     }
 
@@ -228,21 +227,24 @@ class RouteFinder {
         if (fromCountryName === toCountryName) {
             throw new Error('Departure and destination countries are the same.');
         }
-        const requestCountBefore = this.countriesService.getRequestCount();
-        const fromCountryCode = await this.countriesService.getCountryCodeByName(fromCountryName);
-        const toCountryCode = await this.countriesService.getCountryCodeByName(toCountryName);
+
+        const requestCountBefore = this._countriesService.requestCount;
+        const fromCountryCode = await this._countriesService.getCountryCodeByName(fromCountryName);
+        const toCountryCode = await this._countriesService.getCountryCodeByName(toCountryName);
         const tree = new RouteVariantTree(fromCountryCode);
-        const found = await this.findNeighbour([tree.root], toCountryCode);
+        const found = await this._findNeighbour([tree.root], toCountryCode);
+
         if (found) {
             let routes = tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
-            routes = await this.replaceCountryCodesWithNames(routes);
-            return [routes, this.countriesService.getRequestCount() - requestCountBefore];
+            routes = await this._replaceCountryCodesWithNames(routes);
+            return [routes, this._countriesService.requestCount - requestCountBefore];
         }
-        return [null, this.countriesService.getRequestCount() - requestCountBefore];
+
+        return [null, this._countriesService.requestCount - requestCountBefore];
     }
 
-    async replaceCountryCodesWithNames(routes) {
-        const countryCodeToNameMapping = await this.getCountryCodeToNameMapping(routes);
+    async _replaceCountryCodesWithNames(routes) {
+        const countryCodeToNameMapping = await this._getCountryCodeToNameMapping(routes);
         const newRoutes = [];
         for (const route of routes) {
             const newRoute = [];
@@ -254,7 +256,7 @@ class RouteFinder {
         return newRoutes;
     }
 
-    async getCountryCodeToNameMapping(routes) {
+    async _getCountryCodeToNameMapping(routes) {
         let countryCodes = new Set();
         for (const route of routes) {
             for (const countryCode of route) {
@@ -264,7 +266,7 @@ class RouteFinder {
         countryCodes = [...countryCodes];
 
         const countryCodeToNameMapping = {};
-        const countryNames = await this.countriesService.getCountryNamesByCodes(countryCodes);
+        const countryNames = await this._countriesService.getCountryNamesByCodes(countryCodes);
         countryNames.forEach((countryName, index) => {
             countryCodeToNameMapping[countryCodes[index]] = countryName;
         });
