@@ -181,14 +181,17 @@ class RouteFinder {
     async _findNeighbour(parents, countryCode, checkedCountryCodes = new Set(), iteration = 1) {
         console.log(`Iteration: ${iteration}`);
         let found = false;
+
         const countryCodes = parents
             .map((item) => item.countryCode)
             .filter((countryCode) => !checkedCountryCodes.has(countryCode));
+        for (const countryCode of countryCodes) {
+            checkedCountryCodes.add(countryCode);
+        }
 
         const results = await this._countriesService.getNeighboursByCountryCodes(countryCodes);
         results.forEach((neighbours, index) => {
             const parent = parents[index];
-            checkedCountryCodes.add(parent.countryCode);
             for (const neighbour of neighbours) {
                 if (neighbour === countryCode) {
                     found = true;
@@ -197,7 +200,6 @@ class RouteFinder {
                 parent.appendChild(child);
             }
         });
-        console.log(`Checked countries: ${checkedCountryCodes.size}`);
 
         if (!found && iteration < this._maxIterations) {
             let children = [];
