@@ -6,6 +6,7 @@ class CountriesClient {
             code: '/alpha/{code}',
             fullName: '/name/{name}?fullText=true',
         };
+        this.requestCount = 0;
     }
 
     getUrl(urlName, urlParams, fields) {
@@ -30,6 +31,7 @@ class CountriesClient {
             },
             redirect: 'follow',
         });
+        this.requestCount += 1;
         return response.json();
     }
 
@@ -107,6 +109,10 @@ class CountriesService {
     async getNeighboursByCountryCodes(countryCodes) {
         const promises = countryCodes.map(this.getNeighboursByCountryCode.bind(this));
         return Promise.allSettled(promises);
+    }
+
+    getRequestCount() {
+        return this.client.requestCount;
     }
 }
 
@@ -211,31 +217,34 @@ class RouteFinder {
         if (fromCountryName === toCountryName) {
             throw new Error('Departure and destination countries are the same.');
         }
+        const requestCountBefore = this.countriesService.getRequestCount();
         const fromCountryCode = await this.countriesService.getCountryCodeByName(fromCountryName);
         const toCountryCode = await this.countriesService.getCountryCodeByName(toCountryName);
         const tree = new RouteVariantTree(fromCountryCode);
         const found = await this.findNeighbour([tree.root], toCountryCode);
         if (found) {
-            const routes = tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
-            return this.beatifyFoundRoutes(routes);
+            let routes = tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
+            routes = await this.replaceCountryCodesWithNames(routes);
+            return [routes, this.countriesService.getRequestCount() - requestCountBefore];
         }
-        return null;
+        return [null, this.countriesService.getRequestCount() - requestCountBefore];
     }
 
-    async beatifyFoundRoutes(routes) {
-        const countryCodeToNameMapping = await this.getCountryCodeToNameMappingFromRoutes(routes);
-        const beatifiedRoutes = [];
+    async replaceCountryCodesWithNames(routes) {
+        const countryCodeToNameMapping = await this.getCountryCodeToNameMapping(routes);
+        const newRoutes = [];
         for (const route of routes) {
-            const beatifiedRoute = [];
+            const newRoute = [];
             for (const countryCode of route) {
-                beatifiedRoute.push(countryCodeToNameMapping[countryCode]);
+                newRoute.push(countryCodeToNameMapping[countryCode]);
             }
-            beatifiedRoutes.push(beatifiedRoute);
+            newRoutes.push(newRoute);
         }
-        return beatifiedRoutes;
+        console.log(newRoutes);
+        return newRoutes;
     }
 
-    async getCountryCodeToNameMappingFromRoutes(routes) {
+    async getCountryCodeToNameMapping(routes) {
         let countryCodes = new Set();
         for (const route of routes) {
             for (const countryCode of route) {
@@ -311,7 +320,7 @@ function clearMessage() {
         routeFinder
             .findRoute(fromCountry.value, toCountry.value)
             .then((result) => {
-                if (result !== null) {
+                if (result[0] !== null) {
                     showMessage(JSON.stringify(result));
                 } else {
                     showMessage(`Route from ${fromCountry.value} to ${toCountry.value} not found.`);
