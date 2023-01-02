@@ -94,8 +94,12 @@ class CountriesService {
     }
 
     async getCountryNamesByCodes(countryCodes) {
+        if (countryCodes.length === 0) {
+            return [];
+        }
         const promises = countryCodes.map(this.getCountryNameByCode.bind(this));
-        return Promise.allSettled(promises);
+        const values = await Promise.all(promises);
+        return values;
     }
 
     async getNeighboursByCountryCode(countryCode) {
@@ -107,8 +111,12 @@ class CountriesService {
     }
 
     async getNeighboursByCountryCodes(countryCodes) {
+        if (countryCodes.length === 0) {
+            return [];
+        }
         const promises = countryCodes.map(this.getNeighboursByCountryCode.bind(this));
-        return Promise.allSettled(promises);
+        const values = await Promise.all(promises);
+        return values;
     }
 
     getRequestCount() {
@@ -185,20 +193,15 @@ class RouteFinder {
             .map((item) => item.countryCode)
             .filter((countryCode) => !checkedCountryCodes.has(countryCode));
         const results = await this.countriesService.getNeighboursByCountryCodes(countryCodes);
-        results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
-                const parent = parents[index];
-                checkedCountryCodes.add(parent.countryCode);
-                const neighbours = result.value;
-                neighbours.forEach((neighbour) => {
-                    if (neighbour === countryCode) {
-                        found = true;
-                    }
-                    const child = new RouteVariantTreeItem(neighbour, parent);
-                    parent.appendChild(child);
-                });
-            } else {
-                throw new Error(result.reason);
+        results.forEach((neighbours, index) => {
+            const parent = parents[index];
+            checkedCountryCodes.add(parent.countryCode);
+            for (const neighbour of neighbours) {
+                if (neighbour === countryCode) {
+                    found = true;
+                }
+                const child = new RouteVariantTreeItem(neighbour, parent);
+                parent.appendChild(child);
             }
         });
         console.log(`Country codes: ${[...checkedCountryCodes]}`);
@@ -213,11 +216,14 @@ class RouteFinder {
     }
 
     async findRoute(fromCountryName, toCountryName) {
+        if (!fromCountryName && !toCountryName) {
+            throw new Error('Departure and destination countries are required.');
+        }
         if (!fromCountryName) {
-            throw new Error('Departure country cannot be empty.');
+            throw new Error('Departure country is required.');
         }
         if (!toCountryName) {
-            throw new Error('Destination country cannot be empty.');
+            throw new Error('Destination country is required.');
         }
         if (fromCountryName === toCountryName) {
             throw new Error('Departure and destination countries are the same.');
@@ -258,13 +264,9 @@ class RouteFinder {
         countryCodes = [...countryCodes];
 
         const countryCodeToNameMapping = {};
-        const results = await this.countriesService.getCountryNamesByCodes(countryCodes);
-        results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
-                countryCodeToNameMapping[countryCodes[index]] = result.value;
-            } else {
-                throw new Error(result.reason);
-            }
+        const countryNames = await this.countriesService.getCountryNamesByCodes(countryCodes);
+        countryNames.forEach((countryName, index) => {
+            countryCodeToNameMapping[countryCodes[index]] = countryName;
         });
         return countryCodeToNameMapping;
     }
