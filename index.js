@@ -6,6 +6,7 @@ class CountriesClient {
             code: '/alpha/{code}',
         };
         this._requestCount = 0;
+        this._cache = {};
     }
 
     get requestCount() {
@@ -27,6 +28,10 @@ class CountriesClient {
 
     async _get(urlName, urlParams, fields) {
         const url = this._getUrl(urlName, urlParams, fields);
+        let data = this._cache[url];
+        if (data !== undefined) {
+            return data;
+        }
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -38,7 +43,9 @@ class CountriesClient {
         if (!response.ok) {
             throw new Error(response.statusText);
         }
-        return response.json();
+        data = response.json();
+        this._cache[url] = data;
+        return data;
     }
 
     async getAll(fields) {
