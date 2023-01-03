@@ -35,6 +35,9 @@ class CountriesClient {
             redirect: 'follow',
         });
         this._requestCount += 1;
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
         return response.json();
     }
 
@@ -181,13 +184,9 @@ class RouteFinder {
     async _findNeighbour(parents, countryCode, checkedCountryCodes = new Set(), iteration = 1) {
         console.log(`Iteration: ${iteration}`);
         let found = false;
-
         const countryCodes = parents
             .map((item) => item.countryCode)
             .filter((countryCode) => !checkedCountryCodes.has(countryCode));
-        for (const countryCode of countryCodes) {
-            checkedCountryCodes.add(countryCode);
-        }
 
         const results = await this._countriesService.getNeighboursByCountryCodes(countryCodes);
         results.forEach((neighbours, index) => {
@@ -205,6 +204,9 @@ class RouteFinder {
             let children = [];
             for (const parent of parents) {
                 children = children.concat(parent.children);
+            }
+            for (const countryCode of countryCodes) {
+                checkedCountryCodes.add(countryCode);
             }
             return this._findNeighbour(children, countryCode, checkedCountryCodes, iteration + 1);
         }
