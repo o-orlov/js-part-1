@@ -127,6 +127,7 @@ class RouteVariantTreeItem {
         this.countryCode = countryCode;
         this.parent = parent;
         this.children = [];
+        this.checked = false;
     }
 
     appendChild(child) {
@@ -184,11 +185,9 @@ class RouteFinder {
     async _findNeighbour(parents, countryCode, checkedCountryCodes = new Set(), iteration = 1) {
         console.log(`Iteration: ${iteration}`);
         let found = false;
-        const countryCodes = parents
-            .map((item) => item.countryCode)
-            .filter((countryCode) => !checkedCountryCodes.has(countryCode));
-
+        const countryCodes = parents.map((item) => item.countryCode);
         const results = await this._countriesService.getNeighboursByCountryCodes(countryCodes);
+
         results.forEach((neighbours, index) => {
             const parent = parents[index];
             for (const neighbour of neighbours) {
@@ -201,12 +200,14 @@ class RouteFinder {
         });
 
         if (!found && iteration < this._maxIterations) {
-            let children = [];
-            for (const parent of parents) {
-                children = children.concat(parent.children);
-            }
             for (const countryCode of countryCodes) {
                 checkedCountryCodes.add(countryCode);
+            }
+            let children = [];
+            for (const parent of parents) {
+                children = children.concat(
+                    parent.children.filter((child) => !checkedCountryCodes.has(child.countryCode))
+                );
             }
             return this._findNeighbour(children, countryCode, checkedCountryCodes, iteration + 1);
         }
@@ -231,8 +232,8 @@ class RouteFinder {
         const requestCountBefore = this._countriesService.requestCount;
         const fromCountryCode = await this._countriesService.getCountryCodeByName(fromCountryName);
         const toCountryCode = await this._countriesService.getCountryCodeByName(toCountryName);
-        const tree = new RouteVariantTree(fromCountryCode);
         console.log(`Finding route from ${fromCountryCode} to ${toCountryCode}…`);
+        const tree = new RouteVariantTree(fromCountryCode);
         const found = await this._findNeighbour([tree.root], toCountryCode);
 
         if (found) {
