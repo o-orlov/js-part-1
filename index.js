@@ -58,8 +58,8 @@ class CountriesClient {
 }
 
 class CountriesService {
-    constructor(client = new CountriesClient()) {
-        this._client = client;
+    constructor(client) {
+        this._client = client || new CountriesClient();
         this._countriesData = null;
         this._countryNameToCodeMapping = null;
     }
@@ -184,12 +184,12 @@ class RouteVariantTree {
 }
 
 class RouteFinder {
-    constructor(countriesService = new CountriesService(), maxIterations = 10) {
-        this._countriesService = countriesService;
+    constructor(countriesService, maxIterations = 10) {
+        this._countriesService = countriesService || new CountriesService();
         this._maxIterations = maxIterations;
     }
 
-    async _findNeighbour(parents, countryCode, checkedCountryCodes = new Set(), iteration = 1) {
+    async _findNeighbour(parents, countryCode, checkedCountryCodes, iteration = 1) {
         console.log(`Iteration: ${iteration}`);
         let found = false;
         const countryCodes = parents.map((item) => item.countryCode);
@@ -245,7 +245,7 @@ class RouteFinder {
         const toCountryCode = await this._countriesService.getCountryCodeByName(toCountryName);
         console.log(`Finding route from ${fromCountryCode} to ${toCountryCode}…`);
         const tree = new RouteVariantTree(fromCountryCode);
-        const found = await this._findNeighbour([tree.root], toCountryCode);
+        const found = await this._findNeighbour([tree.root], toCountryCode, new Set());
 
         if (found) {
             let routes = tree.toArrays().filter((array) => array[array.length - 1] === toCountryCode);
