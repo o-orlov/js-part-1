@@ -1,3 +1,5 @@
+import Maps from '/maps.js';
+
 class CountriesClient {
     constructor() {
         this._baseUrl = 'https://restcountries.com/v3.1';
@@ -134,7 +136,6 @@ class RouteVariantTreeItem {
         this.countryCode = countryCode;
         this.parent = parent;
         this.children = [];
-        this.checked = false;
     }
 
     appendChild(child) {
@@ -196,6 +197,7 @@ class RouteFinder {
         const results = await this._countriesService.getNeighboursByCountryCodes(countryCodes);
 
         results.forEach((neighbours, index) => {
+            Maps.markAsVisited(neighbours);
             const parent = parents[index];
             for (const neighbour of neighbours) {
                 if (neighbour === countryCode) {
@@ -244,6 +246,7 @@ class RouteFinder {
         const fromCountryCode = await this._countriesService.getCountryCodeByName(fromCountryName);
         const toCountryCode = await this._countriesService.getCountryCodeByName(toCountryName);
         console.log(`Finding route from ${fromCountryCode} to ${toCountryCode}…`);
+        Maps.setEndPoints(fromCountryCode, toCountryCode);
         const tree = new RouteVariantTree(fromCountryCode);
         const found = await this._findNeighbour([tree.root], toCountryCode, new Set());
 
