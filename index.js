@@ -216,6 +216,10 @@ class RouteFinder {
                     parent.children.filter((child) => !checkedCountryCodes.has(child.countryCode))
                 );
             }
+            if (children.length === 0) {
+                console.log('All possible countries have already been checked');
+                return false;
+            }
             return this._findNeighbour(children, countryCode, checkedCountryCodes, iteration + 1);
         }
 
