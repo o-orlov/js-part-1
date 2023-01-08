@@ -9,8 +9,10 @@
     "postinstall": "cp ./githooks/* .git/hooks",
     "lint-staged": "lint-staged",
     "start": "http-server",
-    "lint": "eslint . --ext .js",
-    "lint-fix": "eslint . --ext .js --fix"
+    "lint": "eslint . --ext .js --ext .ts",
+    "lint-fix": "eslint . --ext .js --ext .ts --fix",
+    "tsc": "tsc --outDir ./build/",
+    "tsc-clean": "tsc --clean ./build/"
   },
   "devDependencies": {
     "eslint": "8.29.0",
@@ -18,6 +20,8 @@
     "eslint-plugin-prettier": "4.2.1",
     "http-server": "14.1.1",
     "lint-staged": "13.1.0",
-    "prettier": "2.8.0"
-  }
+    "prettier": "2.8.0",
+    "typescript": "4.9.4"
+  },
+  "dependencies": {}
 }
