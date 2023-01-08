@@ -46,8 +46,13 @@ function clearMessage() {
     setInteractionDisabled(true);
 
     showMessage('Loading…');
-    const countriesData = await countriesService.getCountriesData();
-    clearMessage();
+    let countriesData = {};
+    try {
+        countriesData = await countriesService.getCountriesData();
+        clearMessage();
+    } catch (e) {
+        showError(e);
+    }
 
     // Заполняем список стран для подсказки в инпутах
     Object.keys(countriesData)
