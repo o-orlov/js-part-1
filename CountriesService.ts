@@ -1,41 +1,44 @@
-import CountriesClient from '/CountriesClient.js';
+import type { StringMap, CountryCode, CountryCodeMap, Country, CountryCodeArray } from './types.js';
+import CountriesClient from './CountriesClient.js';
 
 class CountriesService {
-    #client;
-    #countriesData;
-    #countryNameToCodeMapping;
+    #client: CountriesClient;
+    #countriesData: CountryCodeMap<Country> | null;
+    #countryNameToCodeMapping: StringMap<CountryCode> | null;
 
-    constructor(client) {
+    constructor(client?: CountriesClient) {
         this.#client = client || new CountriesClient();
         this.#countriesData = null;
         this.#countryNameToCodeMapping = null;
     }
 
-    async #loadData() {
-        const data = await this.#client.getAll(['name', 'cca3', 'area', 'borders']);
-        this.#countriesData = data.reduce((result, country) => {
+    async #loadData(): Promise<void> | never {
+        const data = await this.#client.getAll(['name', 'cca3', 'area', 'borders']) as Country[];
+        this.#countriesData = data.reduce((result: CountryCodeMap<Country>, country: Country) => {
             result[country.cca3] = country;
             return result;
         }, {});
-        this.#countryNameToCodeMapping = data.reduce((result, country) => {
+        this.#countryNameToCodeMapping = data.reduce((result: StringMap<CountryCode>, country: Country) => {
             result[country.name.common] = country.cca3;
             return result;
         }, {});
     }
 
-    async #ensureDataLoaded() {
-        if (this.#countriesData === null) {
+    async #ensureDataLoaded(): Promise<void> | never {
+        if (this.#countriesData === null || this.#countryNameToCodeMapping === null) {
             await this.#loadData();
         }
     }
 
-    async getCountriesData() {
+    async getCountriesData(): Promise<CountryCodeMap<Country>> | never {
         await this.#ensureDataLoaded();
+        // @ts-expect-error: Object is possibly 'null'
         return this.#countriesData;
     }
 
-    async getCountryCodeByName(countryName) {
+    async getCountryCodeByName(countryName: string): Promise<CountryCode> | never {
         await this.#ensureDataLoaded();
+        // @ts-expect-error: Object is possibly 'null'
         const countryCode = this.#countryNameToCodeMapping[countryName];
         if (countryCode === undefined) {
             throw new Error(`Country code by name "${countryName}" not found.`);
@@ -43,8 +46,9 @@ class CountriesService {
         return countryCode;
     }
 
-    async getCountryNameByCode(countryCode) {
+    async getCountryNameByCode(countryCode: CountryCode): Promise<string> | never {
         await this.#ensureDataLoaded();
+        // @ts-expect-error: Object is possibly 'null'
         const country = this.#countriesData[countryCode];
         if (country === undefined) {
             throw new Error(`Country by code "${countryCode}" not found.`);
@@ -52,7 +56,7 @@ class CountriesService {
         return country.name.common;
     }
 
-    async getCountryNamesByCodes(countryCodes) {
+    async getCountryNamesByCodes(countryCodes: CountryCode[]): Promise<string[]> | never {
         if (countryCodes.length === 0) {
             return [];
         }
@@ -65,8 +69,9 @@ class CountriesService {
         return values;
     }
 
-    async getNeighboursByCountryCode(countryCode) {
+    async getNeighboursByCountryCode(countryCode: CountryCode): Promise<CountryCodeArray> | never {
         await this.#ensureDataLoaded();
+        // @ts-expect-error: Object is possibly 'null'
         const data = this.#countriesData[countryCode];
         if (data === undefined) {
             throw new Error(`Neighbours by country code "${countryCode}" not found.`);
@@ -74,7 +79,7 @@ class CountriesService {
         return data.borders;
     }
 
-    async getNeighboursByCountryCodes(countryCodes) {
+    async getNeighboursByCountryCodes(countryCodes: CountryCode[]): Promise<CountryCodeArray[]> | never {
         if (countryCodes.length === 0) {
             return [];
         }
@@ -87,7 +92,7 @@ class CountriesService {
         return values;
     }
 
-    get requestCount() {
+    get requestCount(): number {
         return this.#client.requestCount;
     }
 }

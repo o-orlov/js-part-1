@@ -1,24 +1,26 @@
+import type { StringMap, CountryCode, BaseCountry } from './types.js';
+
 class CountriesClient {
-    static #BASE_URL = 'https://restcountries.com';
-    static #API_VERSION = 'v3.1';
-    static #PATHNAMES = {
+    static #BASE_URL: string = 'https://restcountries.com';
+    static #API_VERSION: string = 'v3.1';
+    static #PATHNAMES: StringMap<string> = {
         all: '/all',
         code: '/alpha/{code}',
     };
 
-    #requestCount;
-    #cache;
+    #requestCount: number;
+    #cache: StringMap<unknown>;
 
     constructor() {
         this.#requestCount = 0;
         this.#cache = {};
     }
 
-    get requestCount() {
+    get requestCount(): number {
         return this.#requestCount;
     }
 
-    static #getUrl(urlName, urlParams, fields) {
+    static #getUrl(urlName: string, urlParams?: StringMap<string> | null, fields?: string[] | null): URL {
         let pathname = CountriesClient.#PATHNAMES[urlName];
         if (urlParams) {
             Object.keys(urlParams).forEach((paramName) => {
@@ -34,7 +36,7 @@ class CountriesClient {
         return url;
     }
 
-    async #get(urlName, urlParams, fields) {
+    async #get(urlName: string, urlParams?: StringMap<string> | null, fields?: string[] | null): Promise<unknown> | never {
         const url = CountriesClient.#getUrl(urlName, urlParams, fields);
         let data = this.#cache[url.href];
         if (data !== undefined) {
@@ -56,12 +58,12 @@ class CountriesClient {
         return data;
     }
 
-    async getAll(fields) {
-        return this.#get('all', null, fields);
+    async getAll(fields?: string[] | null): Promise<BaseCountry[]> | never {
+        return this.#get('all', null, fields) as Promise<BaseCountry[]>;
     }
 
-    async searchByCountryCode(countryCode, fields) {
-        return this.#get('code', { code: countryCode }, fields);
+    async searchByCountryCode(countryCode: CountryCode, fields?: string[] | null): Promise<BaseCountry> | never {
+        return this.#get('code', { code: countryCode }, fields) as Promise<BaseCountry>;
     }
 }
 
