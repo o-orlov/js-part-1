@@ -52,8 +52,12 @@ class CountriesService {
         if (countryCodes.length === 0) {
             return [];
         }
-        const promises = countryCodes.map(this.getCountryNameByCode.bind(this));
-        const values = await Promise.all(promises);
+        const values = [];
+        for (const countryCode of countryCodes) {
+            // eslint-disable-next-line no-await-in-loop
+            const value = await this.getCountryNameByCode(countryCode);
+            values.push(value);
+        }
         return values;
     }
 
