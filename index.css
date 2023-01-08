@@ -4,3 +4,6 @@ body {
 .mui-btn {
     transition: none;
 }
+#output {
+    white-space: pre;
+}

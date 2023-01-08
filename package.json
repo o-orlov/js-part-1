@@ -8,7 +8,9 @@
   "scripts": {
     "postinstall": "cp ./githooks/* .git/hooks",
     "lint-staged": "lint-staged",
-    "http-server": "http-server"
+    "start": "http-server",
+    "lint": "eslint . --ext .js",
+    "lint-fix": "eslint . --ext .js --fix"
   },
   "devDependencies": {
     "eslint": "8.29.0",

@@ -1,22 +1,5 @@
-async function getData(url) {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        redirect: 'follow',
-    });
-    return response.json();
-}
-
-async function loadCountriesData() {
-    const countries = await getData('https://restcountries.com/v3.1/all?fields=name&fields=cca3&fields=area');
-    return countries.reduce((result, country) => {
-        result[country.cca3] = country;
-        return result;
-    }, {});
-}
+import CountriesService from '/CountriesService.js';
+import RouteFinder from '/RouteFinder.js';
 
 const form = document.getElementById('form');
 const fromCountry = document.getElementById('fromCountry');
@@ -25,14 +8,51 @@ const countriesList = document.getElementById('countriesList');
 const submit = document.getElementById('submit');
 const output = document.getElementById('output');
 
-(async () => {
-    fromCountry.disabled = true;
-    toCountry.disabled = true;
-    submit.disabled = true;
+const countriesService = new CountriesService();
+const routeFinder = new RouteFinder(countriesService);
 
-    output.textContent = 'Loading…';
-    const countriesData = await loadCountriesData();
+function setInteractionDisabled(disabled) {
+    fromCountry.disabled = disabled;
+    toCountry.disabled = disabled;
+    submit.disabled = disabled;
+}
+
+function showMessage(message) {
+    output.textContent = message;
+}
+
+function showError(error) {
+    output.textContent = `Error: ${error.message}`;
+}
+
+function showResult(result) {
+    let route = '';
+    if (result[0] !== null) {
+        for (const variant of result[0]) {
+            route += `${variant.join(' → ')}\r\n`;
+        }
+        route = route.trim();
+    } else {
+        route = `Route from ${fromCountry.value} to ${toCountry.value} not found.`;
+    }
+    output.textContent = `${route}\r\n\r\nAPI calls: ${result[1]}`;
+}
+
+function clearMessage() {
     output.textContent = '';
+}
+
+(async () => {
+    setInteractionDisabled(true);
+
+    showMessage('Loading…');
+    let countriesData = {};
+    try {
+        countriesData = await countriesService.getCountriesData();
+        clearMessage();
+    } catch (e) {
+        showError(e);
+    }
 
     // Заполняем список стран для подсказки в инпутах
     Object.keys(countriesData)
@@ -43,14 +63,19 @@ const output = document.getElementById('output');
             countriesList.appendChild(option);
         });
 
-    fromCountry.disabled = false;
-    toCountry.disabled = false;
-    submit.disabled = false;
+    setInteractionDisabled(false);
 
     form.addEventListener('submit', (event) => {
         event.preventDefault();
-        // TODO: Вывести, откуда и куда едем, и что идёт расчёт.
-        // TODO: Рассчитать маршрут из одной страны в другую за минимум запросов.
-        // TODO: Вывести маршрут и общее количество запросов.
+        clearMessage();
+        setInteractionDisabled(true);
+        showMessage(`Finding route from ${fromCountry.value} to ${toCountry.value}…`);
+        routeFinder
+            .findRoute(fromCountry.value, toCountry.value)
+            .then(showResult)
+            .catch(showError)
+            .finally(() => {
+                setInteractionDisabled(false);
+            });
     });
 })();
