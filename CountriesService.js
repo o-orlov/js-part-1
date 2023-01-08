@@ -12,7 +12,7 @@ class CountriesService {
     }
 
     async #loadData() {
-        const data = await this.#client.getAll(['name', 'cca3', 'area']);
+        const data = await this.#client.getAll(['name', 'cca3', 'area', 'borders']);
         this.#countriesData = data.reduce((result, country) => {
             result[country.cca3] = country;
             return result;
@@ -66,7 +66,11 @@ class CountriesService {
     }
 
     async getNeighboursByCountryCode(countryCode) {
-        const data = await this.#client.searchByCountryCode(countryCode, ['borders']);
+        await this.#ensureDataLoaded();
+        const data = this.#countriesData[countryCode];
+        if (data === undefined) {
+            throw new Error(`Neighbours by country code "${countryCode}" not found.`);
+        }
         return data.borders;
     }
 
@@ -74,8 +78,12 @@ class CountriesService {
         if (countryCodes.length === 0) {
             return [];
         }
-        const promises = countryCodes.map(this.getNeighboursByCountryCode.bind(this));
-        const values = await Promise.all(promises);
+        const values = [];
+        for (const countryCode of countryCodes) {
+            // eslint-disable-next-line no-await-in-loop
+            const value = await this.getNeighboursByCountryCode(countryCode);
+            values.push(value);
+        }
         return values;
     }
 
