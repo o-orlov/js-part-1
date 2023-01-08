@@ -1,32 +1,36 @@
-import CountriesClient from '/countriesclient.js';
+import CountriesClient from '/CountriesClient.js';
 
 class CountriesService {
+    #client;
+    #countriesData;
+    #countryNameToCodeMapping;
+
     constructor(client) {
-        this._client = client || new CountriesClient();
-        this._countriesData = null;
-        this._countryNameToCodeMapping = null;
+        this.#client = client || new CountriesClient();
+        this.#countriesData = null;
+        this.#countryNameToCodeMapping = null;
     }
 
     async getCountriesData() {
-        if (this._countriesData === null) {
-            const data = await this._client.getAll(['name', 'cca3', 'area']);
-            this._countriesData = data.reduce((result, country) => {
+        if (this.#countriesData === null) {
+            const data = await this.#client.getAll(['name', 'cca3', 'area']);
+            this.#countriesData = data.reduce((result, country) => {
                 result[country.cca3] = country;
                 return result;
             }, {});
-            this._countryNameToCodeMapping = data.reduce((result, country) => {
+            this.#countryNameToCodeMapping = data.reduce((result, country) => {
                 result[country.name.common] = country.cca3;
                 return result;
             }, {});
         }
-        return this._countriesData;
+        return this.#countriesData;
     }
 
     async getCountryCodeByName(countryName) {
-        if (this._countriesData === null) {
+        if (this.#countriesData === null) {
             await this.getCountriesData();
         }
-        const countryCode = this._countryNameToCodeMapping[countryName];
+        const countryCode = this.#countryNameToCodeMapping[countryName];
         if (countryCode === undefined) {
             throw new Error(`Country code by name "${countryName}" not found.`);
         }
@@ -34,10 +38,10 @@ class CountriesService {
     }
 
     async getCountryNameByCode(countryCode) {
-        if (this._countriesData === null) {
+        if (this.#countriesData === null) {
             await this.getCountriesData();
         }
-        const country = this._countriesData[countryCode];
+        const country = this.#countriesData[countryCode];
         if (country === undefined) {
             throw new Error(`Country by code "${countryCode}" not found.`);
         }
@@ -54,7 +58,7 @@ class CountriesService {
     }
 
     async getNeighboursByCountryCode(countryCode) {
-        const data = await this._client.searchByCountryCode(countryCode, ['borders']);
+        const data = await this.#client.searchByCountryCode(countryCode, ['borders']);
         return data.borders;
     }
 
@@ -68,7 +72,7 @@ class CountriesService {
     }
 
     get requestCount() {
-        return this._client.requestCount;
+        return this.#client.requestCount;
     }
 }
 

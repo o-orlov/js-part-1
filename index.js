@@ -1,5 +1,5 @@
-import CountriesService from '/countriesservice.js';
-import RouteFinder from '/routefinder.js';
+import CountriesService from '/CountriesService.js';
+import RouteFinder from '/RouteFinder.js';
 
 const form = document.getElementById('form');
 const fromCountry = document.getElementById('fromCountry');

@@ -1,20 +1,24 @@
 class CountriesClient {
+    static #BASE_URL = 'https://restcountries.com/v3.1';
+    static #URLS = {
+        all: '/all',
+        code: '/alpha/{code}',
+    };
+
+    #requestCount;
+    #cache;
+
     constructor() {
-        this._baseUrl = 'https://restcountries.com/v3.1';
-        this._urls = {
-            all: '/all',
-            code: '/alpha/{code}',
-        };
-        this._requestCount = 0;
-        this._cache = {};
+        this.#requestCount = 0;
+        this.#cache = {};
     }
 
     get requestCount() {
-        return this._requestCount;
+        return this.#requestCount;
     }
 
-    _getUrl(urlName, urlParams, fields) {
-        let url = this._urls[urlName];
+    static #getUrl(urlName, urlParams, fields) {
+        let url = CountriesClient.#URLS[urlName];
         if (urlParams) {
             Object.keys(urlParams).forEach((paramName) => {
                 url = url.replace(`{${paramName}}`, urlParams[paramName]);
@@ -23,12 +27,12 @@ class CountriesClient {
         if (fields) {
             url += `?fields=${fields.toString()}`;
         }
-        return this._baseUrl + url;
+        return CountriesClient.#BASE_URL + url;
     }
 
-    async _get(urlName, urlParams, fields) {
-        const url = this._getUrl(urlName, urlParams, fields);
-        let data = this._cache[url];
+    async #get(urlName, urlParams, fields) {
+        const url = CountriesClient.#getUrl(urlName, urlParams, fields);
+        let data = this.#cache[url];
         if (data !== undefined) {
             return data;
         }
@@ -39,21 +43,21 @@ class CountriesClient {
             },
             redirect: 'follow',
         });
-        this._requestCount += 1;
+        this.#requestCount += 1;
         if (!response.ok) {
             throw new Error(response.statusText);
         }
         data = response.json();
-        this._cache[url] = data;
+        this.#cache[url] = data;
         return data;
     }
 
     async getAll(fields) {
-        return this._get('all', null, fields);
+        return this.#get('all', null, fields);
     }
 
     async searchByCountryCode(countryCode, fields) {
-        return this._get('code', { code: countryCode }, fields);
+        return this.#get('code', { code: countryCode }, fields);
     }
 }
 
