@@ -1,7 +1,7 @@
 {
   "name": "js-part-1",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "index.ts",
   "repository": "git@github.com:ipetropolsky/js-part-1.git",
   "author": "'Ivan Petropolsky' <i.petropolsky@hh.ru>",
   "license": "MIT",
@@ -9,8 +9,10 @@
     "postinstall": "cp ./githooks/* .git/hooks",
     "lint-staged": "lint-staged",
     "start": "http-server",
-    "lint": "eslint . --ext .js",
-    "lint-fix": "eslint . --ext .js --fix"
+    "lint": "eslint . --ext .js --ext .ts",
+    "lint-fix": "eslint . --ext .js --ext .ts --fix",
+    "build": "tsc",
+    "build-clean": "tsc --clean"
   },
   "devDependencies": {
     "eslint": "8.29.0",
@@ -18,6 +20,9 @@
     "eslint-plugin-prettier": "4.2.1",
     "http-server": "14.1.1",
     "lint-staged": "13.1.0",
-    "prettier": "2.8.0"
-  }
+    "prettier": "2.8.0",
+    "tslib": "2.4.1",
+    "typescript": "4.9.4"
+  },
+  "dependencies": {}
 }
